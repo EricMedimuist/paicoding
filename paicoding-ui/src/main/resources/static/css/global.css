@@ -1221,6 +1221,20 @@ button:focus {
   max-width: 240px;
 }
 
+.arCatalog-body .arCatalog-tack3 {
+  padding-left: 34px;
+}
+
+.arCatalog-body .arCatalog-tack3 a {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pai-color-999-gray);
+  font-size: 14px;
+  max-width: 220px;
+}
+
 .arCatalog .arCatalog-line:before {
   content: "";
   position: absolute;
