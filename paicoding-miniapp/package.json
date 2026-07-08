@@ -1,6 +1,17 @@
 {
+  "scripts": {
+    "dev": "gulp watch",
+    "build": "gulp build"
+  },
   "dependencies": {
     "mp-html": "^2.5.2",
     "tdesign-miniprogram": "^1.15.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.5.2",
+    "gulp": "^5.0.1",
+    "postcss": "^8.5.16",
+    "tailwindcss": "^4.3.2",
+    "weapp-tailwindcss": "^5.1.12"
   }
 }
