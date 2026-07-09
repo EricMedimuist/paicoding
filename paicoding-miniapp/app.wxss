@@ -9,8 +9,6 @@
 @source not "./miniprogram_npm/**";
 @source not "./node_modules/**";
 
-@import './styles/utils.wxss';
-
 @font-face {
   font-family: 'DingTalk JinBuTi';
   src: url('https://cdn.paicoding.com/stutymore/pai-coding-DingTalk_JinBuTi.ttf') format('truetype');
