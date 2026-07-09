@@ -42,17 +42,17 @@
     <view class="footer">
       <view class="meta">
         <view class="flex-ic">
-          <image src="/static/images/article-read.png" class="icon" />
+          <image src="/assets/images/article-read.png" class="icon" />
           <text class="value">{{item.readCount}}</text>
         </view>
-        
+
         <view class="flex-ic">
-          <image src="/static/images/article-praise.png" class="icon" />
+          <image src="/assets/images/article-praise.png" class="icon" />
           <text class="value">{{item.praiseCount}}</text>
         </view>
-        
+
         <view class="flex-ic">
-          <image src="/static/images/article-comment.png" class="icon" />
+          <image src="/assets/images/article-comment.png" class="icon" />
           <text class="value">{{item.commentCount}}</text>
         </view>
       </view>

@@ -1,4 +1,6 @@
 {
+  "$schema": "https://vite.icebreaker.top/app.json",
+  "componentFramework": "glass-easel",
   "pages": [
     "pages/index/index",
     "pages/profile/profile",
@@ -21,14 +23,14 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "iconPath": "static/tabbar/article.png",
-        "selectedIconPath": "static/tabbar/article-active.png",
+        "iconPath": "assets/tabbar/article.png",
+        "selectedIconPath": "assets/tabbar/article-active.png",
         "text": "文章"
       },
       {
         "pagePath": "pages/profile/profile",
-        "iconPath": "static/tabbar/profile.png",
-        "selectedIconPath": "static/tabbar/profile-active.png",
+        "iconPath": "assets/tabbar/profile.png",
+        "selectedIconPath": "assets/tabbar/profile-active.png",
         "text": "我的"
       }
     ]
@@ -48,6 +50,7 @@
     {
       "root": "skills",
       "independent": true,
+      "entry": "article-search/index.js",
       "pages": []
     }
   ]

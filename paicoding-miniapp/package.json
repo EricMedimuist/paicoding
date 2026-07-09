@@ -1,17 +1,39 @@
 {
+  "type": "module",
   "scripts": {
-    "dev": "gulp watch",
-    "build": "gulp build"
+    "dev": "wv dev",
+    "dev:open": "wv dev -o",
+    "dev:ui": "wv dev --ui",
+    "dev:open:ui": "wv dev --ui -o",
+    "build": "wv build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "open": "wv open",
+    "stylelint": "stylelint \"src/**/*.{css,scss,vue,wxss}\" --allow-empty-input",
+    "stylelint:fix": "stylelint \"src/**/*.{css,scss,vue,wxss}\" --fix --allow-empty-input",
+    "g": "wv generate",
+    "postinstall": "wv prepare"
   },
   "dependencies": {
     "mp-html": "^2.5.2",
     "tdesign-miniprogram": "^1.15.2"
   },
   "devDependencies": {
-    "autoprefixer": "^10.5.2",
-    "gulp": "^5.0.1",
+    "@icebreakers/eslint-config": "^6.0.0",
+    "@icebreakers/stylelint-config": "^5.0.0",
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify/tailwind4": "^1.2.3",
+    "@types/node": "^26.0.1",
+    "@weapp-vite/dashboard": "^6.17.8",
+    "eslint": "^10.6.0",
+    "miniprogram-api-typings": "^5.2.1",
     "postcss": "^8.5.16",
-    "tailwindcss": "^4.3.2",
-    "weapp-tailwindcss": "^5.1.12"
+    "sass": "^1.101.0",
+    "stylelint": "^17.14.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "weapp-tailwindcss": "^5.1.13",
+    "weapp-vite": "^6.17.8",
+    "wevu": "^6.17.8"
   }
 }

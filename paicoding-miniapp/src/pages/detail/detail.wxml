@@ -11,12 +11,12 @@
     <view class="meta">
       <image wx:if="{{article.authorAvatar}}" class="avatar" src="{{article.authorAvatar}}" mode="aspectFill"></image>
       <view wx:else class="avatar avatar-placeholder">{{article.authorInitial}}</view>
-      <view class="flex-col flex-1">
-        <text class="text-gray-800 text-base">{{article.authorName}}</text>
-        <view class="flex text-xs gap-6">
+      <view class="flex flex-col flex-1">
+        <text class="text-gray-800 text-14px">{{article.authorName}}</text>
+        <view class="flex text-xs gap-3">
           <text class="text-gray-600">{{article.createTime}}</text>
-          <view class="flex-ic gap-1">
-            <image src="/static/images/article-read-dark.png" style="width: 20rpx" mode="widthFix" />
+          <view class="flex items-center gap-1">
+            <image src="/assets/images/article-read-dark.png" style="width: 20rpx" mode="widthFix" />
             <text class="text-gray-600">{{article.readCount}} </text>
           </view>
         </view>
@@ -34,7 +34,7 @@
     container-style="padding: 15px; font-size: 16px;line-height: 1.7; color: #4b5563;" />
 
   <view class="flex-ic p-8 gap-4">
-    <image src="/static/images/tag.png" style="width: 40rpx" mode="widthFix" />
+    <image src="/assets/images/tag.png" style="width: 40rpx" mode="widthFix" />
     <view wx:for="{{article.tags}}" wx:key="index" class="bg-gray-100 rounded px-4 py-1">
       <text class="text-sm text-gray-700">{{item}}</text>
     </view>

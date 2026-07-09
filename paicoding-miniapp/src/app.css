@@ -1,13 +1,12 @@
 @import 'tailwindcss';
 
-@source "./app.{js,json,wxml}";
-@source "./pages/**/*.{js,wxml,json}";
-@source "./skills/**/*.{js,wxml,json}";
-@source "./utils/**/*.js";
-@source inline("flex w-[22rpx] text-[length:22rpx] after:content-['']");
-@source not "./dist/**";
-@source not "./miniprogram_npm/**";
-@source not "./node_modules/**";
+@plugin "@iconify/tailwind4" {
+  prefixes: mdi;
+  icon-selector: '.i-{prefix}-{name}';
+}
+
+@source "./**/*.{wxml,js,ts}";
+
 
 @font-face {
   font-family: 'DingTalk JinBuTi';

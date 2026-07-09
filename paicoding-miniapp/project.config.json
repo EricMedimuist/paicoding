@@ -1,7 +1,7 @@
 {
   "appid": "wxb10cff3911e6a690",
   "projectname": "paicoding-miniapp",
-  "miniprogramRoot": "./",
+  "miniprogramRoot": "dist/",
   "compileType": "miniprogram",
   "setting": {
     "urlCheck": true,
