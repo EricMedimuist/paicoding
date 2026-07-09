@@ -31,6 +31,13 @@ public interface SitemapService {
     String getRobotsTxt();
 
     /**
+     * 生成 llms.txt 内容（面向 AI 引擎的站点内容目录，GEO 优化）
+     *
+     * @return
+     */
+    String getLlmsTxt();
+
+    /**
      * 刷新站点地图
      */
     void refreshSitemap();

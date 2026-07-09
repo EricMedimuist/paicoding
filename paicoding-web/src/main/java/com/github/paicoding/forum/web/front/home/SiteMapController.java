@@ -49,6 +49,12 @@ public class SiteMapController {
         return sitemapService.getRobotsTxt();
     }
 
+    @RequestMapping(path = "/llms.txt",
+            produces = "text/plain;charset=utf-8")
+    public String llmsTxt() {
+        return sitemapService.getLlmsTxt();
+    }
+
     @GetMapping(path = "/sitemap/refresh")
     public Boolean refresh() {
         sitemapService.refreshSitemap();

@@ -6,7 +6,6 @@ import org.apache.commons.lang3.CharUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -14,10 +13,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -30,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @date 2024/12/5
  */
 public class StrUtil {
-    private static final String IMAGE_DIMENSION_CACHE_VERSION = "text-size-v11:";
+    private static final String IMAGE_DIMENSION_CACHE_VERSION = "text-size-v12:";
     private static final Cache<String, ImageDimension> IMAGE_DIMENSION_CACHE = Caffeine.newBuilder()
             .maximumSize(2048)
             .expireAfterWrite(7, TimeUnit.DAYS)
@@ -60,18 +56,11 @@ public class StrUtil {
             },
             new ThreadPoolExecutor.DiscardPolicy());
     private static final int IMAGE_DIMENSION_TIMEOUT_MS = 1500;
-    private static final int TEXT_SCREENSHOT_TARGET_TEXT_HEIGHT = 18;
-    private static final int TEXT_SCREENSHOT_CONTEXT_TARGET_TEXT_HEIGHT = 20;
-    private static final int TEXT_SCREENSHOT_MIN_TEXT_HEIGHT = 24;
-    private static final int TEXT_SCREENSHOT_MIN_RENDER_WIDTH = 400;
-    private static final int TEXT_SCREENSHOT_MAX_RENDER_WIDTH = 960;
-    private static final int TEXT_SCREENSHOT_DOCUMENT_RENDER_WIDTH = 960;
     private static final int TEXT_SCREENSHOT_COMPACT_POSTER_WIDTH = 420;
-    private static final int TEXT_SCREENSHOT_MAX_ANALYSIS_PIXELS = 4_000_000;
-    private static final double TEXT_SCREENSHOT_WIDE_ASPECT_RATIO = 1.55D;
-    private static final int TEXT_SCREENSHOT_SPARSE_TEXT_ROW_COVERAGE = 48;
-    private static final double TEXT_SCREENSHOT_COLD_TALL_ASPECT_RATIO = 1.75D;
-    private static final int TEXT_SCREENSHOT_COLD_TALL_MAX_RENDER_WIDTH = 620;
+    private static final int PORTRAIT_IMAGE_MIN_SOURCE_WIDTH = 640;
+    private static final int PORTRAIT_IMAGE_MAX_SOURCE_WIDTH = 1200;
+    private static final int PORTRAIT_IMAGE_MIN_RENDER_WIDTH = 400;
+    private static final int PORTRAIT_IMAGE_MAX_RENDER_WIDTH = 560;
 
     /**
      * 微信支付的提示信息，不支持表情包，因此我们只保留中文 + 数字 + 英文字母 + 符号 '《》【】-_.'
@@ -192,6 +181,7 @@ public class StrUtil {
         }
 
         try {
+            ImageDimensionStore store = resolveImageDimensionStore();
             org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parseBodyFragment(html);
             org.jsoup.select.Elements images = doc.select("img");
             int imageIndex = 0;
@@ -203,8 +193,15 @@ public class StrUtil {
                 if (StringUtils.isNotBlank(src)) {
                     String cacheKey = buildImageDimensionCacheKey(src);
                     dimension = IMAGE_DIMENSION_CACHE.getIfPresent(cacheKey);
+                    if (dimension == null && store != null) {
+                        int[] stored = store.find(src);
+                        if (stored != null) {
+                            dimension = new ImageDimension(stored[0], stored[1]);
+                            IMAGE_DIMENSION_CACHE.put(cacheKey, dimension);
+                        }
+                    }
                     if (dimension == null) {
-                        warmImageDimension(src, cacheKey);
+                        warmImageDimension(src, cacheKey, store);
                     }
                 }
 
@@ -240,17 +237,26 @@ public class StrUtil {
             img.attr("decoding", "async");
         }
 
+        // 首图往往就是 LCP 元素，lazy 加载会显著推迟发现时间，必须立即加载
+        if (imageIndex == 0) {
+            img.removeAttr("loading");
+            if (!img.hasAttr("fetchpriority")) {
+                img.attr("fetchpriority", "high");
+            }
+            return;
+        }
+
         if (!img.hasAttr("loading")) {
             img.attr("loading", "lazy");
         }
 
-        if (imageIndex > 0 && !img.hasAttr("fetchpriority")) {
+        if (!img.hasAttr("fetchpriority")) {
             img.attr("fetchpriority", "low");
         }
     }
 
     private static void markReadableImageClass(org.jsoup.nodes.Element img, ImageDimension dimension) {
-        int maxDisplayWidth = dimension.maxDisplayWidth;
+        int maxDisplayWidth = inferPortraitImageMaxWidth(dimension.width, dimension.height);
         if (looksLikeCompactPoster(img, dimension)) {
             img.addClass("article-content-img--compact-poster");
             maxDisplayWidth = Math.min(dimension.width, TEXT_SCREENSHOT_COMPACT_POSTER_WIDTH);
@@ -269,18 +275,21 @@ public class StrUtil {
             return null;
         }
 
-        return new ImageDimension(width, height, inferColdReadableImageMaxWidth(width, height));
+        return new ImageDimension(width, height);
     }
 
-    private static int inferColdReadableImageMaxWidth(int width, int height) {
-        if (width > 1200 || height < width * TEXT_SCREENSHOT_COLD_TALL_ASPECT_RATIO) {
+    /**
+     * 只收窄竖图（高 > 宽，典型为微信聊天/手机截图，文字偏大），横图、方图保持原始宽度，
+     * 避免终端/产品界面等横版截图被压缩后文字不可读。规则纯几何、确定性，不做像素内容分析。
+     */
+    private static int inferPortraitImageMaxWidth(int width, int height) {
+        if (width < PORTRAIT_IMAGE_MIN_SOURCE_WIDTH || width > PORTRAIT_IMAGE_MAX_SOURCE_WIDTH || height <= width) {
             return 0;
         }
 
-        int maxDisplayWidth = width * 3 / 5;
-        maxDisplayWidth = Math.max(TEXT_SCREENSHOT_MIN_RENDER_WIDTH, maxDisplayWidth);
-        maxDisplayWidth = Math.min(TEXT_SCREENSHOT_COLD_TALL_MAX_RENDER_WIDTH, maxDisplayWidth);
-        maxDisplayWidth = Math.min(width, maxDisplayWidth);
+        int maxDisplayWidth = width / 2;
+        maxDisplayWidth = Math.max(PORTRAIT_IMAGE_MIN_RENDER_WIDTH, maxDisplayWidth);
+        maxDisplayWidth = Math.min(PORTRAIT_IMAGE_MAX_RENDER_WIDTH, maxDisplayWidth);
         return maxDisplayWidth < width * 0.92D ? maxDisplayWidth : 0;
     }
 
@@ -380,7 +389,7 @@ public class StrUtil {
                     int width = reader.getWidth(0);
                     int height = reader.getHeight(0);
                     if (width > 0 && height > 0) {
-                        return new ImageDimension(width, height, detectReadableImageMaxWidth(reader, width, height));
+                        return new ImageDimension(width, height);
                     }
                     return null;
                 } finally {
@@ -396,147 +405,53 @@ public class StrUtil {
         }
     }
 
-    private static int detectReadableImageMaxWidth(ImageReader reader, int width, int height) {
-        if ((long) width * height > TEXT_SCREENSHOT_MAX_ANALYSIS_PIXELS) {
-            return 0;
-        }
-
+    private static ImageDimensionStore resolveImageDimensionStore() {
         try {
-            BufferedImage image = reader.read(0);
-            ImageTextProfile textProfile = estimateImageTextProfile(image);
-            if (looksLikeReadableWideScreenshot(width, height, textProfile)) {
-                return 0;
-            }
-
-            if (looksLikeDocumentScreenshot(width, height, textProfile)) {
-                return Math.min(width, TEXT_SCREENSHOT_DOCUMENT_RENDER_WIDTH);
-            }
-
-            int estimatedTextHeight = estimateReadableTextHeight(width, height, textProfile);
-            if (estimatedTextHeight <= 0) {
-                return 0;
-            }
-
-            int targetTextHeight = resolveTargetTextHeight(width, height, textProfile);
-            int maxDisplayWidth = width * targetTextHeight / estimatedTextHeight;
-            maxDisplayWidth = Math.max(TEXT_SCREENSHOT_MIN_RENDER_WIDTH, maxDisplayWidth);
-            maxDisplayWidth = Math.min(TEXT_SCREENSHOT_MAX_RENDER_WIDTH, maxDisplayWidth);
-            maxDisplayWidth = Math.min(width, maxDisplayWidth);
-            return maxDisplayWidth < width * 0.92D ? maxDisplayWidth : 0;
+            return SpringUtil.getBeanOrNull(ImageDimensionStore.class);
         } catch (Exception e) {
-            return 0;
+            return null;
         }
     }
 
-    private static boolean looksLikeReadableWideScreenshot(int width, int height, ImageTextProfile textProfile) {
-        return height > 0
-                && width >= height * TEXT_SCREENSHOT_WIDE_ASPECT_RATIO
-                && textProfile.textGroupCount >= 4
-                && textProfile.medianTextHeight > 0
-                && textProfile.medianTextHeight < TEXT_SCREENSHOT_MIN_TEXT_HEIGHT;
-    }
-
-    private static boolean looksLikeDocumentScreenshot(int width, int height, ImageTextProfile textProfile) {
-        return width >= 1600
-                && height >= 1000
-                && textProfile.textGroupCount >= 10
-                && textProfile.medianTextHeight > 0
-                && textProfile.medianTextHeight <= TEXT_SCREENSHOT_MIN_TEXT_HEIGHT
-                && textProfile.maxTextHeight >= textProfile.medianTextHeight * 3;
-    }
-
-    private static int resolveTargetTextHeight(int width, int height, ImageTextProfile textProfile) {
-        if (height > width
-                && textProfile.textGroupCount >= 10
-                && textProfile.textRowCoveragePercent > 0
-                && textProfile.textRowCoveragePercent <= TEXT_SCREENSHOT_SPARSE_TEXT_ROW_COVERAGE) {
-            return TEXT_SCREENSHOT_CONTEXT_TARGET_TEXT_HEIGHT;
-        }
-        return TEXT_SCREENSHOT_TARGET_TEXT_HEIGHT;
-    }
-
-    private static int estimateReadableTextHeight(int width, int height, ImageTextProfile textProfile) {
-        if (textProfile.maxTextHeight < TEXT_SCREENSHOT_MIN_TEXT_HEIGHT) {
-            return 0;
+    /**
+     * 同步探测图片尺寸并持久化，供存量数据回填等后台任务调用
+     *
+     * @return true 表示尺寸已可用（缓存/库中已有或本次探测成功）
+     */
+    public static boolean ensureImageDimension(String rawSrc) {
+        String src = normalizeImageSrc(rawSrc);
+        if (StringUtils.isBlank(src)) {
+            return false;
         }
 
-        int estimatedTextHeight = textProfile.textGroupCount >= 4 && textProfile.medianTextHeight > 0
-                ? textProfile.medianTextHeight
-                : textProfile.maxTextHeight;
-        if (estimatedTextHeight < TEXT_SCREENSHOT_MIN_TEXT_HEIGHT) {
-            return 0;
+        String cacheKey = buildImageDimensionCacheKey(src);
+        if (IMAGE_DIMENSION_CACHE.getIfPresent(cacheKey) != null) {
+            return true;
         }
 
-        return estimatedTextHeight;
-    }
-
-    private static ImageTextProfile estimateImageTextProfile(BufferedImage image) {
-        if (image == null) {
-            return ImageTextProfile.empty();
-        }
-
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int sampleStep = Math.max(1, width / 1200);
-        int sampleWidth = (width + sampleStep - 1) / sampleStep;
-        int minInkPerRow = Math.max(8, sampleWidth / 100);
-        int maxInkPerRow = Math.max(minInkPerRow + 1, sampleWidth * 65 / 100);
-        List<Integer> textHeights = new ArrayList<>();
-        int start = -1;
-        int textRowCount = 0;
-
-        for (int y = 0; y < height; y++) {
-            int inkCount = countDarkPixelsInRow(image, y, sampleStep);
-            boolean looksLikeTextRow = inkCount >= minInkPerRow && inkCount <= maxInkPerRow;
-            if (looksLikeTextRow) {
-                textRowCount++;
-                if (start < 0) {
-                    start = y;
-                }
-            } else if (start >= 0) {
-                collectTextHeight(textHeights, y - start);
-                start = -1;
+        ImageDimensionStore store = resolveImageDimensionStore();
+        if (store != null) {
+            int[] stored = store.find(src);
+            if (stored != null) {
+                IMAGE_DIMENSION_CACHE.put(cacheKey, new ImageDimension(stored[0], stored[1]));
+                return true;
             }
         }
 
-        if (start >= 0) {
-            collectTextHeight(textHeights, height - start);
-        }
-        if (textHeights.isEmpty()) {
-            return ImageTextProfile.empty();
+        ImageDimension dimension = loadImageDimension(src);
+        if (dimension == null) {
+            IMAGE_DIMENSION_MISS_CACHE.put(cacheKey, Boolean.TRUE);
+            return false;
         }
 
-        Collections.sort(textHeights);
-        return new ImageTextProfile(
-                textHeights.get(textHeights.size() - 1),
-                textHeights.get(textHeights.size() / 2),
-                textHeights.size(),
-                height <= 0 ? 0 : textRowCount * 100 / height);
+        IMAGE_DIMENSION_CACHE.put(cacheKey, dimension);
+        if (store != null) {
+            store.save(src, dimension.width, dimension.height);
+        }
+        return true;
     }
 
-    private static void collectTextHeight(List<Integer> textHeights, int height) {
-        if (height >= 8 && height <= 140) {
-            textHeights.add(height);
-        }
-    }
-
-    private static int countDarkPixelsInRow(BufferedImage image, int y, int sampleStep) {
-        int width = image.getWidth();
-        int count = 0;
-        for (int x = 0; x < width; x += sampleStep) {
-            int rgb = image.getRGB(x, y);
-            int red = (rgb >> 16) & 0xff;
-            int green = (rgb >> 8) & 0xff;
-            int blue = rgb & 0xff;
-            int luminance = (red * 299 + green * 587 + blue * 114) / 1000;
-            if (luminance < 125) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static void warmImageDimension(String src, String cacheKey) {
+    private static void warmImageDimension(String src, String cacheKey, ImageDimensionStore store) {
         if (IMAGE_DIMENSION_CACHE.getIfPresent(cacheKey) != null
                 || IMAGE_DIMENSION_MISS_CACHE.getIfPresent(cacheKey) != null
                 || IMAGE_DIMENSION_WARMING_CACHE.getIfPresent(cacheKey) != null) {
@@ -549,6 +464,9 @@ public class StrUtil {
                 ImageDimension dimension = loadImageDimension(src);
                 if (dimension != null) {
                     IMAGE_DIMENSION_CACHE.put(cacheKey, dimension);
+                    if (store != null) {
+                        store.save(src, dimension.width, dimension.height);
+                    }
                 } else {
                     IMAGE_DIMENSION_MISS_CACHE.put(cacheKey, Boolean.TRUE);
                 }
@@ -644,30 +562,10 @@ public class StrUtil {
     private static class ImageDimension {
         private final int width;
         private final int height;
-        private final int maxDisplayWidth;
 
-        private ImageDimension(int width, int height, int maxDisplayWidth) {
+        private ImageDimension(int width, int height) {
             this.width = width;
             this.height = height;
-            this.maxDisplayWidth = maxDisplayWidth;
-        }
-    }
-
-    private static class ImageTextProfile {
-        private final int maxTextHeight;
-        private final int medianTextHeight;
-        private final int textGroupCount;
-        private final int textRowCoveragePercent;
-
-        private ImageTextProfile(int maxTextHeight, int medianTextHeight, int textGroupCount, int textRowCoveragePercent) {
-            this.maxTextHeight = maxTextHeight;
-            this.medianTextHeight = medianTextHeight;
-            this.textGroupCount = textGroupCount;
-            this.textRowCoveragePercent = textRowCoveragePercent;
-        }
-
-        private static ImageTextProfile empty() {
-            return new ImageTextProfile(0, 0, 0, 0);
         }
     }
 

@@ -46,6 +46,7 @@ public class SitemapServiceImpl implements SitemapService {
     @Value("${view.site.host:https://paicoding.com}")
     private String host;
     private static final int SCAN_SIZE = 100;
+    private static final int LLMS_LATEST_ARTICLE_SIZE = 50;
 
     private static final String SITE_MAP_CACHE_KEY = "sitemap";
     private static final long VISIT_STAT_TTL_SECONDS = 30 * DateUtil.ONE_DAY_SECONDS;
@@ -241,6 +242,75 @@ public class SitemapServiceImpl implements SitemapService {
         sb.append("# Sitemap 位置\n");
         sb.append("Sitemap: ").append(host()).append("/sitemap.xml\n");
         return sb.toString();
+    }
+
+    /**
+     * 生成 llms.txt：面向 AI 引擎（ChatGPT/Claude/Perplexity 等）的站点内容目录。
+     * 规范参考 https://llmstxt.org/ ：H1 站点名 + 引用块简介 + 分节链接列表（markdown）。
+     */
+    @Override
+    public String getLlmsTxt() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("# 技术派（paicoding.com）\n\n");
+        sb.append("> 技术派是面向开发者的中文技术社区，由沉默王二创办。核心内容：AI 编程工具实战");
+        sb.append("（Codex、Claude Code、Agent 开发、Skills 配置）、Java 后端技术、RAG/大模型项目实战、");
+        sb.append("求职面试。文章均为一手原创实践，引用时请标注来源 paicoding.com。\n\n");
+
+        sb.append("## 教程专栏\n\n");
+        List<ColumnInfoDO> columns = columnDao.lambdaQuery()
+                .gt(ColumnInfoDO::getState, ColumnStatusEnum.OFFLINE.getCode())
+                .list();
+        for (ColumnInfoDO column : columns) {
+            sb.append("- [").append(mdText(column.getColumnName())).append("](").append(buildColumnUrl(column)).append(")");
+            if (StringUtils.isNotBlank(column.getIntroduction())) {
+                sb.append(": ").append(mdText(StringUtils.abbreviate(column.getIntroduction(), 80)));
+            }
+            sb.append('\n');
+        }
+
+        sb.append("\n## 最新文章\n\n");
+        Map<String, Long> siteMap = RedisClient.hGetAll(SITE_MAP_CACHE_KEY, Long.class);
+        if (CollectionUtils.isEmpty(siteMap)) {
+            initSiteMap();
+            siteMap = RedisClient.hGetAll(SITE_MAP_CACHE_KEY, Long.class);
+        }
+        List<Map.Entry<String, Long>> latest = siteMap.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(LLMS_LATEST_ARTICLE_SIZE)
+                .collect(Collectors.toList());
+        List<Long> articleIds = latest.stream().map(e -> Long.valueOf(e.getKey())).collect(Collectors.toList());
+        if (!articleIds.isEmpty()) {
+            Map<Long, ArticleDO> articleMap = articleDao.listByIds(articleIds).stream()
+                    .collect(Collectors.toMap(ArticleDO::getId, article -> article, (a, b) -> a));
+            for (Map.Entry<String, Long> entry : latest) {
+                ArticleDO article = articleMap.get(Long.valueOf(entry.getKey()));
+                if (article == null) {
+                    continue;
+                }
+                ColumnArticleDO columnArticle = columnArticleDao.selectColumnArticleByArticleId(article.getId());
+                String url = buildArticleUrl(article, article.getId(), columnArticle);
+                sb.append("- [").append(mdText(article.getTitle())).append("](").append(url).append(")");
+                if (StringUtils.isNotBlank(article.getSummary())) {
+                    sb.append(": ").append(mdText(StringUtils.abbreviate(article.getSummary(), 80)));
+                }
+                sb.append('\n');
+            }
+        }
+
+        sb.append("\n## 更多\n\n");
+        sb.append("- 全站文章索引（sitemap）: ").append(host()).append("/sitemap.xml\n");
+        sb.append("- 站点首页: ").append(host()).append("/\n");
+        return sb.toString();
+    }
+
+    /**
+     * markdown 链接文本安全处理：去掉换行和中括号，避免破坏列表结构
+     */
+    private String mdText(String text) {
+        if (StringUtils.isBlank(text)) {
+            return "";
+        }
+        return text.replaceAll("[\\r\\n\\[\\]]", " ").trim();
     }
 
     /**

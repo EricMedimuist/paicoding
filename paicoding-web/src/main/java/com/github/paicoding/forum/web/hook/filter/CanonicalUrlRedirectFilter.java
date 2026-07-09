@@ -25,7 +25,9 @@ import java.util.regex.Pattern;
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class CanonicalUrlRedirectFilter extends OncePerRequestFilter {
     private static final Pattern JSESSIONID_PATTERN = Pattern.compile(";jsessionid=[^/?]*", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ARTICLE_ID_WITH_SUFFIX_PATTERN = Pattern.compile("^/article/detail/(\\d+)\\D[^/]*$");
+    // 只清洗紧跟在文章ID后的垃圾字符（如 /article/detail/123abc），不能吞掉 "/"：
+    // /article/detail/{id}/{slug} 是合法路由，要放行给 Controller 一跳直达 slug，避免链式 301
+    private static final Pattern ARTICLE_ID_WITH_SUFFIX_PATTERN = Pattern.compile("^/article/detail/(\\d+)[^/0-9][^/]*$");
     private static final Pattern NESTED_ARTICLE_DETAIL_PATTERN = Pattern.compile("^/article/detail/(\\d+)/article/detail/\\d+.*$");
     private static final Pattern RELATIVE_ARTICLE_DETAIL_PATTERN = Pattern.compile("^/(?:article|column|rank|user)(?:/[^?]*)?/article/detail/(\\d+).*$");
     private static final Pattern USER_HOME_PATH_PATTERN = Pattern.compile("^/user/\\d+$");

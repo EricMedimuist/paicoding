@@ -446,14 +446,12 @@
           return;
         }
 
-        if (img.naturalWidth > 1200 || img.naturalHeight < img.naturalWidth * 1.75) {
+        // 与服务端规则保持一致：只收窄竖图（微信聊天/手机截图），横图、方图不动
+        if (img.naturalWidth < 640 || img.naturalWidth > 1200 || img.naturalHeight <= img.naturalWidth) {
           return;
         }
 
-        const maxWidth = Math.min(
-          img.naturalWidth,
-          Math.min(620, Math.max(400, Math.floor(img.naturalWidth * 0.6)))
-        );
+        const maxWidth = Math.min(560, Math.max(400, Math.floor(img.naturalWidth / 2)));
         if (maxWidth >= img.naturalWidth * 0.92) {
           return;
         }
