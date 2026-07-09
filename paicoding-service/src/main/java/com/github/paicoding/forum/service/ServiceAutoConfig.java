@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
         "com.github.paicoding.forum.service.statistics.repository.mapper",
         "com.github.paicoding.forum.service.notify.repository.mapper",
         "com.github.paicoding.forum.service.shortlink.repository.mapper",
+        "com.github.paicoding.forum.service.image.repository.mapper",
 })
 public class ServiceAutoConfig {
 

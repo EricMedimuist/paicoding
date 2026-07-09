@@ -246,4 +246,9 @@
     <changeSet id="20260530_1" author="Codex">
         <sqlFile dbms="mysql" endDelimiter=";" encoding="UTF-8" path="liquibase/data/update_schema_260530.sql"/>
     </changeSet>
+
+    <!-- 图片尺寸表：持久化正文图片宽高，渲染时补充占位消除 CLS -->
+    <changeSet id="20260709_1" author="Claude">
+        <sqlFile dbms="mysql" endDelimiter=";" encoding="UTF-8" path="liquibase/data/update_schema_260709.sql"/>
+    </changeSet>
 </databaseChangeLog>
