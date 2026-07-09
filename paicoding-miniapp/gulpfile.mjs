@@ -14,7 +14,16 @@ const tw = WeappTailwindcss({
 })
 
 export async function clean() {
-  await rm(outDir, { recursive: true, force: true })
+  try {
+    await rm(outDir, { recursive: true, force: true })
+  } catch (error) {
+    if (error && ['EBUSY', 'EPERM'].includes(error.code)) {
+      console.warn(`Skipped cleaning ${outDir} because it is currently locked.`)
+      return
+    }
+
+    throw error
+  }
 }
 
 export function wxss() {
@@ -63,6 +72,7 @@ export function assets() {
       base: '.',
       allowEmpty: true,
       dot: true,
+      encoding: false,
     },
   ).pipe(dest(outDir))
 }
