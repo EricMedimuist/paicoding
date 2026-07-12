@@ -32,7 +32,7 @@ ai:
 
 # 阿里通义千问
 ali:
-  model: qwen-turbo-0919
+  model: qwen-max
 
 # 智谱 AI
 zhipu:
