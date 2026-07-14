@@ -82,6 +82,20 @@
         </button>
       </div>
       <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="urlSlug">URL Slug:</label>
+          <input
+                  id="urlSlug"
+                  type="text"
+                  class="form-control"
+                  maxlength="100"
+                  pattern="[a-z0-9-]+"
+                  th:value="${vo.article != null ? vo.article.urlSlug : ''}"
+                  placeholder="Leave blank to generate from the article title"
+          />
+          <small class="form-text text-muted">Optional. Use lowercase letters, numbers, and hyphens only (max 100 characters).</small>
+        </div>
+
         <div class="edit-sort-wrap form-group category required">
           <label class="form-label">分类:</label>
           <div class="form-selectgroup">
@@ -1050,6 +1064,7 @@
     }
 
     const summary = $("#summary").val()
+    const urlSlug = $.trim($("#urlSlug").val())
     if (summary.length < contentMin || summary.length > summaryMax) {
       toastr.error("简介字数应该在6-128之间哦!");
       return;
@@ -1085,6 +1100,7 @@
       readType: readType,
       tagIds: tagsAll,
       summary: summary,
+      urlSlug: urlSlug,
       actionType: action, // post 表示发表, save表示暂存
     }
     if (readType == 4) {
