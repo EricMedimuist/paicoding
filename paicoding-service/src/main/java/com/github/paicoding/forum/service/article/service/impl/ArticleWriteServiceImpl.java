@@ -160,31 +160,7 @@ public class ArticleWriteServiceImpl implements ArticleWriteService {
         }
 
         // 新文章始终使用文章标题生成 slug，避免短标题影响详情地址。
-        return generateUniqueArticleSlug(generateArticleSlug(req.getTitle()), req.getArticleId());
-    }
-
-    /**
-     * 业务职责：将文章标题转换为可用的 slug 基础值。
-     *
-     * 流程作用：为未显式指定 slug 的新文章提供默认地址标识，并修正空值和纯数字等无效结果。
-     */
-    private String generateArticleSlug(String title) {
-        String slug;
-        try {
-            slug = slugGeneratorService.generateSlugWithAI(title);
-        } catch (Exception e) {
-            log.warn("AI生成文章slug失败: title={}", title, e);
-            slug = UrlSlugUtil.generateSlug(title);
-        }
-
-        if (StringUtils.isBlank(slug)) {
-            return "article";
-        }
-        if (StringUtils.isNumeric(slug)) {
-            slug = "article-" + slug;
-        }
-        slug = StringUtils.stripEnd(StringUtils.left(slug, ARTICLE_SLUG_MAX_LENGTH), "-");
-        return StringUtils.defaultIfBlank(slug, "article");
+        return generateUniqueArticleSlug(req.getTitle(), req.getArticleId());
     }
 
     /**
@@ -192,8 +168,19 @@ public class ArticleWriteServiceImpl implements ArticleWriteService {
      *
      * 流程作用：避免文章和专栏详情路由冲突；编辑当前文章时排除自身已有 slug。
      */
-    private String generateUniqueArticleSlug(String baseSlug, Long articleId) {
+    private String generateUniqueArticleSlug(String title, Long articleId) {
+        String baseSlug;
+        try {
+            String aiSlug = slugGeneratorService.generateSlugWithAI(title);
+            baseSlug = isValidArticleSlug(aiSlug)
+                    ? UrlSlugUtil.generateSlug(aiSlug)
+                    : UrlSlugUtil.generateSlug(title);
+        } catch (Exception e) {
+            log.warn("AI生成文章slug失败: title={}", title, e);
+            baseSlug = UrlSlugUtil.generateSlug(title);
+        }
 
+        // UrlSlugUtil 保证基础 slug 非空、格式合法且长度受控；这里仅保留文章地址空间的唯一化逻辑。
         String slug = baseSlug;
         int suffix = 2;
         // 发现冲突时追加递增后缀，直到文章和专栏均未占用该地址。

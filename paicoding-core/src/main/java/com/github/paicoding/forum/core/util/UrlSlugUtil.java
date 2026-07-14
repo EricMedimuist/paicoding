@@ -25,6 +25,7 @@ public class UrlSlugUtil {
     private static final Pattern DUPLICATE_DASH = Pattern.compile("-+");
     private static final Pattern ASCII_SEO_TOKEN = Pattern.compile("[a-z0-9]{2,}");
     private static final int MAX_SLUG_LENGTH = 100;
+    private static final String FALLBACK_SLUG_PREFIX = "slug-";
 
     /**
      * 生成URL友好的slug
@@ -34,12 +35,8 @@ public class UrlSlugUtil {
      * @return URL友好的slug字符串
      */
     public static String generateSlug(String text) {
-        if (StringUtils.isBlank(text)) {
-            return "";
-        }
-
-        // 1. 转小写
-        String slug = text.toLowerCase(Locale.ENGLISH);
+        // 1. 转小写；空输入直接使用通用兜底值，保证调用方无需额外校验。
+        String slug = StringUtils.defaultString(text).toLowerCase(Locale.ENGLISH);
 
         slug = replaceKnownSeoTerms(slug);
 
@@ -80,10 +77,32 @@ public class UrlSlugUtil {
 
         // 10. 如果最终结果为空,使用时间戳
         if (StringUtils.isBlank(slug)) {
-            slug = "article-" + System.currentTimeMillis();
+            return buildFallbackSlug();
         }
 
-        return slug;
+        // 纯数字 slug 容易与其他数字型路径产生歧义，使用通用前缀保证可直接作为业务 URL。
+        if (StringUtils.isNumeric(slug)) {
+            slug = FALLBACK_SLUG_PREFIX + slug;
+        }
+
+        return limitLength(slug);
+    }
+
+    private static String buildFallbackSlug() {
+        return FALLBACK_SLUG_PREFIX + System.currentTimeMillis();
+    }
+
+    private static String limitLength(String slug) {
+        if (slug.length() <= MAX_SLUG_LENGTH) {
+            return slug;
+        }
+
+        slug = slug.substring(0, MAX_SLUG_LENGTH);
+        int lastDash = slug.lastIndexOf('-');
+        if (lastDash > 0) {
+            slug = slug.substring(0, lastDash);
+        }
+        return slug.replaceAll("^-+|-+$", "");
     }
 
     private static String replaceKnownSeoTerms(String text) {
