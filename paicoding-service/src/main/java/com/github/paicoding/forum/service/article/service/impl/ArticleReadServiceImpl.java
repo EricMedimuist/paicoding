@@ -144,9 +144,10 @@ public class ArticleReadServiceImpl implements ArticleReadService {
 
         // 文章的操作标记
         if (readUser != null) {
-            // 更新用于足迹，并判断是否点赞、评论、收藏
+            // 为已登录用户创建或更新一条已读的足迹
             UserFootDO foot = userFootService.saveOrUpdateUserFoot(DocumentTypeEnum.ARTICLE, articleId,
                     article.getAuthor(), readUser, OperateTypeEnum.READ);
+            //根据足迹更新文章的点赞评论收藏状态
             article.setPraised(Objects.equals(foot.getPraiseStat(), PraiseStatEnum.PRAISE.getCode()));
             article.setCommented(Objects.equals(foot.getCommentStat(), CommentStatEnum.COMMENT.getCode()));
             article.setCollected(Objects.equals(foot.getCollectionStat(), CollectionStatEnum.COLLECTION.getCode()));
