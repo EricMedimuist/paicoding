@@ -3,6 +3,8 @@ package com.github.paicoding.forum.web.front.article.rest;
 import com.github.paicoding.forum.api.model.context.ReqInfoContext;
 import com.github.paicoding.forum.api.model.enums.DocumentTypeEnum;
 import com.github.paicoding.forum.api.model.enums.OperateTypeEnum;
+import com.github.paicoding.forum.api.model.enums.PushStatusEnum;
+import com.github.paicoding.forum.api.model.enums.YesOrNoEnum;
 import com.github.paicoding.forum.api.model.vo.NextPageHtmlVo;
 import com.github.paicoding.forum.api.model.vo.PageListVo;
 import com.github.paicoding.forum.api.model.vo.PageParam;
@@ -191,10 +193,12 @@ public class ArticleRestController {
             return ResVo.fail(StatusEnum.ILLEGAL_ARGUMENTS_MIXED, "文章id非法");
         }
 
-        // 要求文章必须存在
+        // 校验文章处于未删除且已发布状态，避免对不可操作文章写入用户足迹
         ArticleDO article = articleReadService.queryBasicArticle(articleId);
-        if (article == null) {
-            return ResVo.fail(StatusEnum.ILLEGAL_ARGUMENTS_MIXED, "文章不存在!");
+        if (article == null
+                || !Objects.equals(article.getDeleted(), YesOrNoEnum.NO.getCode())
+                || !Objects.equals(article.getStatus(), PushStatusEnum.ONLINE.getCode())) {
+            return ResVo.fail(StatusEnum.ARTICLE_NOT_EXISTS, "文章不存在!");
         }
 
         // 更新用户与文章的点赞/收藏状态
