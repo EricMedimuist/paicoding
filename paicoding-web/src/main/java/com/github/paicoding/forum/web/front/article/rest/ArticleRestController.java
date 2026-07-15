@@ -169,15 +169,26 @@ public class ArticleRestController {
      * @param articleId
      * @param type      取值来自于 OperateTypeEnum#code
      * @return
-     */
+    */
     @Permission(role = UserRole.LOGIN)
-    @GetMapping(path = "favor")
+    @PostMapping(path = "favor")
     @MdcDot(bizCode = "#articleId")
     public ResVo<Boolean> favor(@RequestParam(name = "articleId") Long articleId,
                                 @RequestParam(name = "type") Integer type) throws IOException, TimeoutException {
+
+
         OperateTypeEnum operate = OperateTypeEnum.fromCode(type);
-        if (operate == OperateTypeEnum.EMPTY) {
+        // 限制文章互动类型，避免写入阅读或评论足迹
+        if (!(operate == OperateTypeEnum.PRAISE
+                || operate == OperateTypeEnum.CANCEL_PRAISE
+                || operate == OperateTypeEnum.COLLECTION
+                || operate == OperateTypeEnum.CANCEL_COLLECTION)) {
             return ResVo.fail(StatusEnum.ILLEGAL_ARGUMENTS_MIXED, type + "非法");
+        }
+
+        // 校验文章 ID，避免无效参数进入查询流程
+        if (articleId == null || articleId <= 0) {
+            return ResVo.fail(StatusEnum.ILLEGAL_ARGUMENTS_MIXED, "文章id非法");
         }
 
         // 要求文章必须存在
@@ -192,6 +203,7 @@ public class ArticleRestController {
                 operate);
         return ResVo.ok(true);
     }
+
 
 
     /**

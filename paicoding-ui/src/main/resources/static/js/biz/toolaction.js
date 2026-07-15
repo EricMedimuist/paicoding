@@ -2,7 +2,7 @@
 const praiseArticle = function (articleId, action, callback) {
     // 2 点赞， 4 取消点赞
     const type = action ? 2 : 4;
-    $.get('/article/api/favor?articleId=' + articleId + "&type=" + type, function (data) {
+    $.post('/article/api/favor', {articleId: articleId, type: type}, function (data) {
         console.log("response:", data);
         if (!data || !data.status || data.status.code !== 0) {
             toastr.error(data.message);
@@ -55,7 +55,7 @@ const praiseComment = function (e,login) {
 const collectArticle = function (articleId, action, callback) {
     // 3 收藏， 5 取消收藏
     const type = action ? 3 : 5;
-    $.get('/article/api/favor?articleId=' + articleId + "&type=" + type, function (data) {
+    $.post('/article/api/favor', {articleId: articleId, type: type}, function (data) {
         console.log("response:", data);
         if (!data || !data.status || data.status.code !== 0) {
             toastr.error(data.message);
